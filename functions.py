@@ -104,6 +104,22 @@ def compare_histograms(hist1, hist2):
 
     # Return the correlation score
     return numerator / denominator
+    
+
+def min_max_loc(result):
+    # Compute min and max values
+    min_val = np.min(result)
+    max_val = np.max(result)
+
+    # Find row, column indices of min and max values
+    min_loc = np.unravel_index(np.argmin(result), result.shape)
+    max_loc = np.unravel_index(np.argmax(result), result.shape)
+
+    # Convert (row, column) to (x, y) for OpenCV compatibility
+    min_loc = (min_loc[1], min_loc[0])  # Flip row-column to x-y
+    max_loc = (max_loc[1], max_loc[0])  # Flip row-column to x-y
+
+    return min_val, max_val, min_loc, max_loc
 
 
 def multi_scale_template_matching(frame_gray, template, scales):
@@ -124,7 +140,7 @@ def multi_scale_template_matching(frame_gray, template, scales):
 
         # Perform template matching
         result = cv2.matchTemplate(frame_gray, resized_template, cv2.TM_CCOEFF_NORMED)
-        _, max_val, _, max_loc = cv2.minMaxLoc(result)
+        _, max_val, _, max_loc = min_max_loc(result)
 
         if max_val > best_match_val:
             best_match_val = max_val
@@ -193,4 +209,3 @@ def face_detection(image, templates, threshold=0.6):
         face_boxes.append((x_min, y_min, int(w), int(h)))
 
     return face_boxes
-
