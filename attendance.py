@@ -9,6 +9,7 @@ from functions import to_grayscale, resize_image, calculate_histogram, compare_h
 # Setup directories and files
 saved_faces_dir = "saved_faces"
 attendance_file = "attendance.txt"
+template_path = "assets/templates"
 os.makedirs(saved_faces_dir, exist_ok=True)
 
 # Load Roboto font
@@ -19,7 +20,11 @@ font = ImageFont.truetype(font_path, font_size)
 # Global variables
 mode = "Attendance"  # Modes: "Attendance", "Add Student"
 logged_today = set()  # Track students logged during the current session
-
+templates = dict(
+    left_eye=to_grayscale(cv2.imread(os.path.join(template_path, 'template_left_eye.jpg'))),
+    right_eye=to_grayscale(cv2.imread(os.path.join(template_path, 'template_right_eye.jpg'))),
+    mouth=to_grayscale(cv2.imread(os.path.join(template_path, 'template_mouth.jpg')))
+)
 
 # Function to load saved faces and calculate their histograms
 def load_saved_faces():
@@ -69,7 +74,7 @@ def log_attendance(name):
 
 
 # Function to compare histograms for face matching
-def compare_faces(detected_face_hist, saved_faces, saved_names, threshold=0.85):
+def compare_faces(detected_face_hist, saved_faces, saved_names, threshold=0.8):
     best_match_name = None
     best_match_score = 0  # Default score for the best match
 
@@ -166,12 +171,20 @@ def main():
         gray = to_grayscale(frame)
 
         # Detect faces
-        faces = face_detection(gray)
+        faces = face_detection(gray, templates)
         detected_face = None
         detection_status = "Processing..."
 
         for (x, y, w, h) in faces:
             detected_face = gray[y:y+h, x:x+w]
+
+            if len(detected_face.shape) != 2:
+                continue
+
+            
+            if detected_face.shape[0] == 0  or detected_face.shape[1] == 0:
+                continue
+
             # Resize the detected face to match saved face dimensions
             resized_face = resize_image(detected_face, 150, 150)
 

@@ -1,3 +1,4 @@
+import cv2
 import numpy as np
 
 def to_grayscale(image):
@@ -20,122 +21,6 @@ def to_grayscale(image):
     return gray
 
 
-def gaussian_filter(image, kernel_size = 3, sigma = 1):
-    sigma_squared = sigma ** 2
-    pi = math.pi
-    e_value = math.e
-    center = kernel_size // 2
-    gaussian_kernel = np.zeros((kernel_size, kernel_size), dtype=np.float32)
-
-    for y in range(-center, center + 1):
-        for x in range(-center, center + 1):
-            Gxy = (1 / (2 * pi * sigma_squared)) * (e_value ** ( -((x ** 2 + y ** 2) / (2 * sigma_squared))))
-            gaussian_kernel[y + center][x + center] = Gxy
-
-    
-    gaussian_kernel /= gaussian_kernel.sum()
-
-    height, width = image.shape
-    blurred_image = np.zeros((height, width), dtype=np.uint8)
-    
-    padded_image = np.zeros((height + center * 2, width + center * 2), dtype=np.uint8)
-
-    padded_image = np.pad(image, pad_width=center, mode='edge')
-#    for row in range(0, height + 2, 1):
-#        for column in range(0, width + 2, 1):
-#            if column == 0 and row == 0:
-#                padded_image[0][0] = image[0][0]
-#            elif (column == width + 1) and (row == height + 1):
-#                padded_image[row][column] = image[height - 1][width - 1]
-#            elif (column == width + 1) and row == 0:
-#                padded_image[0][column] = image[0][width - 1]
-#            elif column == 0 and (row == height + 1):
-#                padded_image[row][0] = image[height - 1][0]
-#            elif row == 0:
-#                padded_image[0][column] = image[0][column - 1]
-#            elif column == 0:
-#                padded_image[row][0] = image[row - 1][0]
-#            elif row == height + 1:
-#                padded_image[row][column] = image[row - 2][column - 1]
-#            elif column == width + 1:
-#                padded_image[row][column] = image[row - 1][column - 2]
-#            else:
-#                padded_image[row][column] = image[row - 1][column - 1]    
-
-    for row in range(1, height + 1, 1):
-        for column in range(1, width + 1, 1):
-            total = 0
-            for y in range(kernel_size):
-                for x in range(kernel_size):
-                    total += gaussian_kernel[y][x] * padded_image[row + y - 1][column + x - 1]
-
-            blurred_image[row - 1][column - 1] = np.clip(round(total), 0, 255)
-
-    print(blurred_image)
-    return blurred_image
-
-
-def sobel_filter(image):
-    sobel_filter_x = np.array([[-1, 0, 1],
-                               [-2, 0, 2],
-                               [-1, 0, 1]])
-    sobel_filter_y = np.array([[-1, -2, -1],
-                               [0, 0, 0],
-                               [1, 2, 1]])
-    kernel_size = 3
-    
-    height, width = image.shape
-    filtered_image = np.zeros((height, width), dtype=np.uint8)
-    
-    padded_image = np.zeros((height + 2, width + 2), dtype=np.uint8)
-    magnitudes = np.zeros((height, width), dtype=np.float32)
-
-    padded_image = np.pad(image, pad_width=1, mode='edge')
-#    for row in range(0, height + 2, 1):
-#        for column in range(0, width + 2, 1):
-#            if column == 0 and row == 0:
-#                padded_image[0][0] = image[0][0]
-#            elif (column == width + 1) and (row == height + 1):
-#                padded_image[row][column] = image[height - 1][width - 1]
-#            elif (column == width + 1) and row == 0:
-#                padded_image[0][column] = image[0][width - 1]
-#            elif column == 0 and (row == height + 1):
-#               padded_image[row][0] = image[height - 1][0]
-#            elif row == 0:
-#                padded_image[0][column] = image[0][column - 1]
-#            elif column == 0:
-#                padded_image[row][0] = image[row - 1][0]
-#            elif row == height + 1:
-#                padded_image[row][column] = image[row - 2][column - 1]
-#            elif column == width + 1:
-#                padded_image[row][column] = image[row - 1][column - 2]
-#            else:
-#                padded_image[row][column] = image[row - 1][column - 1]    
-
-    for row in range(1, height + 1, 1):
-        for column in range(1, width + 1, 1):
-            total_x = 0
-            total_y = 0
-            for y in range(kernel_size):
-                for x in range(kernel_size):
-                    total_x += sobel_filter_x[y][x] * padded_image[row + y - 1][column + x - 1]
-                    total_y += sobel_filter_y[y][x] * padded_image[row + y - 1][column + x - 1]
-            magnitude = np.sqrt(total_x**2 + total_y**2)
-            magnitudes[row - 1][column - 1] = magnitude
-
-    threshold = 40   
-    min_magnitude = magnitudes.min()
-    max_magnitude = magnitudes.max()
-
-    if max_magnitude - min_magnitude > 0:
-        normalized_magnitudes = (magnitudes - min_magnitude) / (max_magnitude - min_magnitude) * 255
-        filtered_image = np.where(normalized_magnitudes > threshold, normalized_magnitudes, 0).astype(np.uint8)
-    else:
-        filtered_image = np.zeros_like(magnitudes, dtype=np.uint8)
-
-    return filtered_image
-
-
 def resize_image(image, new_width, new_height):
     # Validate input image
     if len(image.shape) != 2:
@@ -143,6 +28,10 @@ def resize_image(image, new_width, new_height):
 
     # Get the original dimensions
     orig_height, orig_width = image.shape
+
+    # Check for empty images
+    if orig_height == 0 or orig_width == 0:
+        raise ValueError("Input image is empty or has invalid dimensions")
 
     # Create an empty output image with the new dimensions
     resized_image = np.zeros((new_height, new_width), dtype=np.uint8)
@@ -155,8 +44,8 @@ def resize_image(image, new_width, new_height):
     for y in range(new_height):
         for x in range(new_width):
             # Map the coordinates back to the original image
-            orig_x = int(x * scale_x)
-            orig_y = int(y * scale_y)
+            orig_x = min(int(x * scale_x), orig_width - 1)  # Ensure within bounds
+            orig_y = min(int(y * scale_y), orig_height - 1)  # Ensure within bounds
 
             # Assign the nearest pixel value
             resized_image[y, x] = image[orig_y, orig_x]
@@ -217,5 +106,91 @@ def compare_histograms(hist1, hist2):
     return numerator / denominator
 
 
-def face_detection(image, threshold = 0.5):
-    return 
+def multi_scale_template_matching(frame_gray, template, scales):
+    best_match_val = -1
+    best_match_loc = None
+    best_match_scale = None
+
+    for scale in scales:
+        # Calculate the new width and height based on the scale
+        new_width = int(template.shape[1] * scale)  # scale * original width
+        new_height = int(template.shape[0] * scale)  # scale * original height
+
+        # Use the custom resize function
+        resized_template = resize_image(template, new_width, new_height)
+
+        if resized_template.shape[0] > frame_gray.shape[0] or resized_template.shape[1] > frame_gray.shape[1]:
+            continue
+
+        # Perform template matching
+        result = cv2.matchTemplate(frame_gray, resized_template, cv2.TM_CCOEFF_NORMED)
+        _, max_val, _, max_loc = cv2.minMaxLoc(result)
+
+        if max_val > best_match_val:
+            best_match_val = max_val
+            best_match_loc = max_loc
+            best_match_scale = scale
+            best_template_size = resized_template.shape
+
+    return best_match_val, best_match_loc, best_match_scale, best_template_size
+
+
+def filter_eye_matches(left_eye, right_eye, min_distance=30):
+    if left_eye and right_eye:
+        left_x = left_eye[0][0] + left_eye[2][1] // 2
+        right_x = right_eye[0][0] + right_eye[2][1] // 2
+
+        # Check horizontal distance
+        if abs(right_x - left_x) < min_distance:
+            # If eyes are too close, invalidate one of them
+            if left_eye[0][0] < right_eye[0][0]:
+                right_eye = None  # Remove the right eye if too close
+            else:
+                left_eye = None  # Remove the left eye if too close
+
+    return left_eye, right_eye
+
+
+def face_detection(image, templates, threshold=0.6):
+    # Scaling factors to account for different object sizes
+    scales = [0.75, 0.5, 0.25]
+    face_boxes = []
+
+    # Dictionary to hold best matches for each template
+    best_matches = {}
+
+    # Perform template matching for each body part
+    for part_name in ['left_eye', 'right_eye', 'mouth']:
+        template = templates[part_name]
+        match_val, match_loc, match_scale, match_size = multi_scale_template_matching(image, template, scales)
+        if match_val > threshold:
+            best_matches[part_name] = (match_loc, match_scale, match_size)
+
+    # Filter eye matches to ensure they are apart
+    left_eye = best_matches.get('left_eye')
+    right_eye = best_matches.get('right_eye')
+    left_eye, right_eye = filter_eye_matches(left_eye, right_eye, min_distance=30)
+
+    # Calculate face bounding box if at least two features are detected
+    if left_eye and right_eye:
+        left_eye_center = (left_eye[0][0] + left_eye[2][1] // 2, left_eye[0][1] + left_eye[2][0] // 2)
+        right_eye_center = (right_eye[0][0] + right_eye[2][1] // 2, right_eye[0][1] + right_eye[2][0] // 2)
+        eye_width = abs(right_eye_center[0] - left_eye_center[0])
+        face_width = int(eye_width * 2.2)
+        face_height = int(eye_width * 2.7)
+        x_min = int(min(left_eye_center[0], right_eye_center[0]) - eye_width // 2)
+        y_min = int(min(left_eye_center[1], right_eye_center[1]) - eye_width)
+        face_boxes.append((x_min, y_min, face_width, face_height))
+
+    elif len(best_matches) == 2:  # Use mouth and one eye to approximate
+        keypoints = list(best_matches.values())
+        x_coords = [kp[0][0] for kp in keypoints]
+        y_coords = [kp[0][1] for kp in keypoints]
+        w = max(kp[2][1] for kp in keypoints) * 2
+        h = w * 1.5
+        x_min = int(min(x_coords))
+        y_min = int(min(y_coords))
+        face_boxes.append((x_min, y_min, int(w), int(h)))
+
+    return face_boxes
+
